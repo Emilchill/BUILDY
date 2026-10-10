@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Visor de estructuras Minecraft</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1>⛏️ Visor de estructuras Minecraft</h1>
+  <button class="sec" id="demo">Ejemplo</button>
+  <label class="btn sec2" title="bedrock-samples (.zip), resource pack de Java (.zip) o .jar del juego">Cargar texturas<input id="file2" type="file" accept=".zip,.jar,.mcpack" hidden></label>
+  <label class="btn" title=".mcstructure, .nbt, .schem, .litematic">Subir estructura<input id="file" type="file" accept=".mcstructure,.nbt,.schem,.litematic,.zip,.jar,.mcpack" hidden></label>
+</header>
+<main>
+  <div id="view">
+    <canvas id="cv"></canvas>
+    <div id="drop">Suelta el archivo aquí</div>
+    <div id="msg">Sube una estructura o arrástrala aquí. Para ver los bloques reales, carga un pack de texturas (bedrock-samples o un resource pack de Java). Arrastra para rotar · Shift/clic derecho para mover · rueda para zoom.</div>
+  </div>
+  <aside>
+    <h2>Información</h2>
+    <div class="stat"><span>Dimensiones</span><b id="s-dim">–</b></div>
+    <div class="stat"><span>Bloques</span><b id="s-cnt">–</b></div>
+    <div class="stat"><span>Tipos</span><b id="s-typ">–</b></div>
+    <h2>Capa máxima: <span id="lay">–</span></h2>
+    <input type="range" id="layer" min="0" max="0" value="0">
+    <label><input type="checkbox" id="rot"> Rotación automática</label>
+    <h2>Texturas</h2>
+    <select id="texsrc"><option value="colors">Colores lisos</option></select>
+    <button class="sec" id="clear">Borrar texturas guardadas</button>
+    <label><input type="checkbox" id="levinv"> Palancas: invertir encendido</label>
+    <label><input type="checkbox" id="levflip"> Palancas: girar 180°</label>
+    <h2>Materiales</h2>
+    <div class="tools"><input id="q" type="search" placeholder="Buscar…"><select id="sort"><option value="count">Más cantidad</option><option value="name">A–Z</option></select><button class="sec" id="csv">CSV</button></div>
+    <div id="list"></div>
+  </aside>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
