@@ -14,9 +14,11 @@ export function renderAuth(){
   nav.replaceChildren(h('a',{href:'#/'},'Catálogo'),
     can('build:create')&&h('a',{href:'#/subir'},'Subir construcción'),
     can('build:edit')&&h('a',{href:'#/mias'},'Mis construcciones'),
+    can('build:moderate')&&h('a',{href:'#/moderar'},'Moderación'),
     can('textures:update')&&h('a',{href:'#/admin'},'Texturas globales'));
+  document.body.classList.toggle('admin-mode',can('build:moderate'));
   if(!auth.user){box.replaceChildren(h('button',{class:'btn',id:'login-btn',onclick:()=>openAuth('login')},'Iniciar sesión ',h('span',{class:'beta'},'beta')));return}
-  box.replaceChildren(h('span',{class:'who'},auth.user.name,' ',h('span',{class:'role '+auth.user.role},auth.user.roleLabel)),
+  box.replaceChildren(can('build:moderate')&&h('span',{class:'admin-flag',id:'admin-flag'},'MODO ADMIN'),h('span',{class:'who'},auth.user.name,' ',h('span',{class:'role '+auth.user.role},auth.user.roleLabel)),
     h('button',{class:'btn sec',id:'logout-btn',onclick:async()=>{await api.post('/api/logout');auth.user=null;renderAuth();toast('Sesión cerrada');if(location.hash!='#/')location.hash='#/';else refresh()}},'Salir'));
 }
 export function openAuth(tab='login'){
@@ -34,6 +36,8 @@ export function openAuth(tab='login'){
     };
     body.replaceChildren(
       h('p',{class:'muted'},t=='login'?'Función en beta. Cualquiera puede ver el catálogo; para publicar necesitas una cuenta.':'Las cuentas nuevas son de tipo Usuario: pueden subir archivos e imágenes.'),
+      t=='login'&&auth.meta.devAdmin&&h('p',{class:'dev-hint',id:'dev-admin'},'Modo desarrollo · ',
+        h('button',{class:'link',id:'dev-fill',onclick:e=>{e.preventDefault();name.value=auth.meta.devAdmin.name;pw.value=auth.meta.devAdmin.password;go()}},'Entrar como admin')),
       name,pw,err,
       h('button',{class:'btn',id:'f-submit',onclick:go},t=='login'?'Entrar':'Crear cuenta'),
       h('button',{class:'link',id:'f-switch',onclick:()=>draw(t=='login'?'register':'login')},t=='login'?'¿No tienes cuenta? Crear una':'Ya tengo cuenta'));

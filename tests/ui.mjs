@@ -84,10 +84,21 @@ await t('admin: ve "Texturas globales"; no puede subir construcciones',async()=>
   $('#f-name').value='admin';$('#f-pass').value='admin-pass-1';click($('#f-submit'));
   await until(()=>$('#logout-btn'),'sesión admin');
   assert.ok($('.who').textContent.includes('Administrador'));
-  assert.deepEqual($$('#nav a').map(a=>a.textContent),['Catálogo','Texturas globales']);
+  assert.deepEqual($$('#nav a').map(a=>a.textContent),['Catálogo','Moderación','Texturas globales']);assert.ok($('#admin-flag'));
   location.hash='#/subir';await until(()=>$('.empty')&&$('.empty').textContent.includes('no puede subir'),'sin permiso subir');
   location.hash='#/admin';await until(()=>$('#a-file'),'panel de texturas');
   assert.ok($('.notice').textContent.includes('EULA'));assert.ok($('#a-cur-bedrock').textContent.includes('Sin texturas'));
+});
+await t('admin (modo admin): modera publicaciones ajenas — ver, editar y eliminar',async()=>{
+  location.hash='#/moderar';const row=await until(()=>$('#mod-list .mine-row'),'lista de moderación');
+  assert.ok(row.textContent.includes('Casa de prueba UI')&&row.textContent.includes('Autor: alba'));
+  location.hash='#/build/'+id;await until(()=>$('#b-edit')&&$('#b-del'),'admin ve Editar y Eliminar en la ficha');
+  click($('#b-edit'));await until(()=>$('#e-mod'),'edición en modo admin');assert.ok($('#e-mod').textContent.includes('alba'));
+  $('#e-title').value='Casa moderada';click($('#e-save'));await until(()=>$('#toast').textContent.includes('Cambios guardados'),'guardado por el admin');
+  assert.equal((await (await f('/api/builds/'+id)).json()).title,'Casa moderada');
+  location.hash='#/moderar';await until(()=>$('#mod-list .mine-row h3')&&$('#mod-list .mine-row h3').textContent=='Casa moderada','lista actualizada');
+  const cur=await (await f('/api/builds/'+id)).json();      // restaurar el título para las pruebas siguientes
+  await f('/api/builds/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'Casa de prueba UI',rev:cur.rev})});
 });
 await t('usuario: ve "Subir construcción"; no ve el panel de texturas',async()=>{
   click($('#logout-btn'));await until(()=>$('#login-btn'),'logout');

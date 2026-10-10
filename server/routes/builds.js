@@ -16,6 +16,7 @@ export function buildRoutes(r,app){
     return c.json(200,await builds.list(q(c)),{ETag:tag,'Cache-Control':'no-cache'});
   });
   r.get('/api/me/builds',async c=>c.json(200,await builds.mine(c.user,q(c)),{'Cache-Control':'no-store'}));
+  r.get('/api/admin/builds',async c=>c.json(200,await builds.all(c.user,q(c)),{'Cache-Control':'no-store'}));
   r.get('/api/builds/:id',async c=>c.json(200,await builds.get(c.params.id,c.user),{'Cache-Control':'no-store'}));
   r.get('/api/builds/:id/file',async c=>{
     const o=await builds.blob(c.params.id,c.user,b=>b.file&&{name:'file'+b.file.ext,download:b.file.name});

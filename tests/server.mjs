@@ -144,14 +144,29 @@ await t('PATCH: validaciones y conflicto de versión (409)',async()=>{
   assert.equal((await A('PATCH',`/api/builds/${bid}`,{json:{title:'Otra',rev:1}})).status,409);
   assert.equal((await A('PATCH','/api/builds/ffffffffffff',{json:{title:'Hola 123'}})).status,404);
 });
-await t('PATCH/DELETE: otro usuario, admin y anónimo NO pueden',async()=>{
-  for(const [who,code] of [[B,403],[AD,403],[ANON,401]]){
+await t('PATCH/DELETE: otro usuario y anónimo NO pueden',async()=>{
+  for(const [who,code] of [[B,403],[ANON,401]]){
     assert.equal((await who('PATCH',`/api/builds/${bid}`,{json:{title:'Hackeado'}})).status,code);
     assert.equal((await who('DELETE',`/api/builds/${bid}`)).status,code);
     assert.equal((await who('DELETE',`/api/builds/${bid}/images/1`)).status,code);
     assert.equal((await who('PUT',`/api/builds/${bid}/images/3`,{raw:PNG1,type:'image/png'})).status,code);
   }
   assert.equal((await ANON('GET',`/api/builds/${bid}`)).data.title,'Titulo nuevo');
+});
+await t('modo admin: edita publicaciones ajenas, ve borradores, lista todo; no publica por otro',async()=>{
+  const d0=(await AD('GET',`/api/builds/${bid}`)).data;assert.equal(d0.mine,false);assert.equal(d0.canManage,true);
+  assert.equal((await B('GET',`/api/builds/${bid}`)).data.canManage,false);assert.equal((await ANON('GET',`/api/builds/${bid}`)).data.canManage,false);
+  const r=await AD('PATCH',`/api/builds/${bid}`,{json:{title:'Titulo moderado',rev}});assert.equal(r.status,200);rev=r.data.rev;
+  assert.equal((await ANON('GET',`/api/builds/${bid}`)).data.title,'Titulo moderado');
+  const dr=(await A('POST','/api/builds',{json:{title:'Borrador de ana',category:'casa'}})).data.id;
+  assert.equal((await ANON('GET',`/api/builds/${dr}`)).status,404);assert.equal((await B('GET',`/api/builds/${dr}`)).status,404);
+  assert.equal((await AD('GET',`/api/builds/${dr}`)).status,200);
+  assert.equal((await AD('POST',`/api/builds/${dr}/publish`)).status,403);
+  const all=await AD('GET','/api/admin/builds');assert.equal(all.status,200);assert.ok(all.data.items.some(x=>x.id==dr&&x.status=='draft'));assert.ok(all.data.items.some(x=>x.id==bid));
+  assert.equal((await AD('GET','/api/admin/builds?status=draft&q=ana')).data.items.every(x=>x.status=='draft'),true);
+  assert.equal((await B('GET','/api/admin/builds')).status,403);assert.equal((await ANON('GET','/api/admin/builds')).status,401);
+  assert.equal((await AD('DELETE',`/api/builds/${dr}`)).status,200);assert.equal((await A('GET',`/api/builds/${dr}`)).status,404);
+  assert.equal((await AD('POST','/api/builds',{json:{title:'Casa',category:'casa'}})).status,403);   // el admin no crea obras
 });
 await t('portada: se intercambia con otra imagen y la caché se invalida (?v=)',async()=>{
   const before=(await ANON('GET',`/api/builds/${bid}`)).data;assert.equal((await ANON('GET',before.images[0])).headers.get('content-type'),'image/png');
@@ -228,5 +243,24 @@ await t('límite de intentos de login por usuario (429), aunque la IP sea la mis
   assert.deepEqual(x,[401,401,401,429,429]);
 });
 await srv3.close();
+/* ===== Admin por defecto (hardcode de beta) ===== */
+{const {loadConfig}=await import('../server/config.js');
+ const d=await startServer({port:0,dir:fs.mkdtempSync(path.join(os.tmpdir(),'mcv4-')),log:()=>{}});
+ await t('sin ADMIN_PASSWORD: cuenta admin por defecto y pista solo desde localhost',async()=>{
+  assert.equal(d.app.config.adminIsDefault,true);
+  const s=await (await fetch(`http://localhost:${d.port}/api/session`)).json();assert.equal(s.devAdmin.name,'admin');
+  const via=await (await fetch(`http://localhost:${d.port}/api/session`,{headers:{'X-Forwarded-For':'8.8.8.8'}})).json();assert.equal(via.devAdmin,null);
+  const l=await fetch(`http://localhost:${d.port}/api/login`,{method:'POST',headers:{'X-Requested-With':'fetch','Content-Type':'application/json'},body:JSON.stringify({name:s.devAdmin.name,password:s.devAdmin.password})});
+  assert.equal(l.status,200);
+ });
+ await t('con contraseña propia no hay pista; producción rechaza la de por defecto',async()=>{
+  const own=await startServer({port:0,dir:fs.mkdtempSync(path.join(os.tmpdir(),'mcv6-')),adminPassword:'otra-clave-1',log:()=>{}});
+  const s=await (await fetch(`http://localhost:${own.port}/api/session`)).json();assert.equal(s.devAdmin,null);await own.close();
+  process.env.NODE_ENV='production';
+  await assert.rejects(()=>startServer({port:0,dir:fs.mkdtempSync(path.join(os.tmpdir(),'mcv5-')),log:()=>{}}),/ADMIN_PASSWORD/);
+  delete process.env.NODE_ENV;
+ });
+ await d.close();}
+
 console.log(`\n${ok} pruebas del servidor OK`);
 fs.rmSync(dir,{recursive:true,force:true});process.exit(0);

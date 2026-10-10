@@ -27,8 +27,8 @@ export async function buildPage(m,qs,app){
         h('div',{class:'actions'},
           h('button',{class:'btn',id:'open-3d',onclick:()=>openViewer(b)},'Ver en 3D'),
           h('a',{class:'btn sec',id:'download',href:`/api/builds/${b.id}/file`,download:b.file.name},'Descargar archivo'),
-          b.mine&&h('a',{class:'btn sec',id:'b-edit',href:'#/editar/'+b.id},'Editar'),
-          b.mine&&h('button',{class:'btn danger',id:'b-del',onclick:async()=>{
+          b.canManage&&h('a',{class:'btn sec',id:'b-edit',href:'#/editar/'+b.id},'Editar'),
+          b.canManage&&h('button',{class:'btn danger',id:'b-del',onclick:async()=>{
             if(!await confirmDialog(`Se eliminará «${b.title}» con su archivo e imágenes. Esta acción no se puede deshacer.`))return;
             try{await api.del('/api/builds/'+b.id);toast('Publicación eliminada','ok');location.hash='#/'}catch(e){toast(e.message,'err')}}},'Eliminar')))),
     materialsView({materials:b.materials,nameOf:nameFn(src),tex,filename:'materiales-'+b.id}));

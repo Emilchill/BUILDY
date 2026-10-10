@@ -2,7 +2,6 @@
    ADMIN_PASSWORD=... node server/server.js     (PORT, STORAGE_DIR, STORAGE, SECURE_COOKIES, TRUST_PROXY, ACCESS_LOG opcionales) */
 import http from 'node:http';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import fs from 'node:fs';
 import {loadConfig,ROOT} from './config.js';
@@ -14,11 +13,12 @@ import {setAliases} from '../js/blocks/bedrock.js';
 export async function startServer(opts={}){
   const config=loadConfig(opts);config.trustProxy=process.env.TRUST_PROXY=='1';
   setAliases(JSON.parse(fs.readFileSync(path.join(ROOT,'data/aliases.json'),'utf8')));
+  const prod=process.env.NODE_ENV=='production'||config.secureCookies;
+  if(prod&&config.adminIsDefault)throw new Error('Producción con la contraseña de admin por defecto: define ADMIN_PASSWORD.');
   const store=await createStore(config);
   if(await store.countUsersByRole('admin')==0){
-    const pw=config.adminPassword||crypto.randomBytes(9).toString('base64url');
-    await store.createUser({id:store.id(),name:'admin',role:'admin',sv:1,created:Date.now(),...await hashPassword(pw)});
-    config.log(`Cuenta admin creada: usuario "admin"${config.adminPassword?'':' · contraseña: '+pw+'  (guárdala, no se vuelve a mostrar)'}`);
+    await store.createUser({id:store.id(),name:config.adminUser,role:'admin',sv:1,created:Date.now(),...await hashPassword(config.adminPassword)});
+    config.log(`Cuenta admin creada: usuario "${config.adminUser}"`+(config.adminIsDefault?` · contraseña por defecto "${config.adminPassword}" (solo para desarrollo: define ADMIN_PASSWORD)`:''));
   }
   const purge=()=>store.purgeDrafts(Date.now()-config.limits.draftTtlMs).catch(e=>config.log('purge',e));
   await purge();const timer=setInterval(purge,3600e3);timer.unref();

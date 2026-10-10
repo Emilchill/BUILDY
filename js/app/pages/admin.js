@@ -40,7 +40,7 @@ export async function adminPage(m,qs,app){
     }catch(e){err.textContent=e.message;send.disabled=false;log.textContent=''}
   });
   app.append(h('h1',{},'Texturas globales'),
-    h('p',{class:'muted'},`Sesión de ${auth.user.name}. Lo único que puede hacer este rol es actualizar las texturas que ve toda la web.`),
+    h('p',{class:'muted'},`Sesión de ${auth.user.name}. Aquí actualizas las texturas que ve toda la web. Para editar o eliminar publicaciones de otros usa Moderación.`),
     h('div',{class:'card-box'},h('h2',{},'Estado actual'),
       h('p',{},h('b',{},'Bedrock: '),h('span',{id:'a-cur-bedrock'},cur('bedrock'))),h('p',{},h('b',{},'Java: '),h('span',{id:'a-cur-java'},cur('java')))),
     h('div',{class:'card-box form'},h('h2',{},'Actualizar'),

@@ -8,12 +8,14 @@ import {uploadPage} from './pages/upload.js';
 import {adminPage} from './pages/admin.js';
 import {minePage} from './pages/mine.js';
 import {editPage} from './pages/edit.js';
+import {moderatePage} from './pages/moderate.js';
 
 route(/^\/$/,catalogPage);
 route(/^\/build\/([a-f0-9]+)$/,buildPage);
 route(/^\/subir$/,uploadPage);
 route(/^\/admin$/,adminPage);
 route(/^\/mias$/,minePage);
+route(/^\/moderar$/,moderatePage);
 route(/^\/editar\/([a-f0-9]+)$/,editPage);
 (async()=>{
   try{setAliases(await (await fetch('/data/aliases.json')).json())}catch(e){console.warn('Sin aliases',e)}

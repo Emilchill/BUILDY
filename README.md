@@ -6,22 +6,26 @@ Sitio web (catálogo/foro) para publicar y explorar estructuras de **Bedrock** y
 ## Arrancar
 
 ```bash
-ADMIN_PASSWORD='una-clave-larga' npm start      # http://localhost:8000
+npm start                                        # http://localhost:8000  ·  admin / admin12345 (solo desarrollo)
+ADMIN_PASSWORD='una-clave-larga' npm start       # con tu propia clave de admin
 ```
 
-- Si no defines `ADMIN_PASSWORD`, se genera una contraseña al azar y se imprime **una sola vez** en la consola.
-- Variables: `PORT` (8000), `STORAGE_DIR` (`./storage`), `SECURE_COOKIES=1` (obligatorio detrás de HTTPS).
+- **Login admin "hardcode" (beta):** sin variables, la cuenta es `admin` / `admin12345`. En el login aparece un botón **Entrar como admin**,
+  pero **solo si la clave es la de por defecto y la petición viene de localhost**. Con `NODE_ENV=production` o `SECURE_COOKIES=1` el servidor
+  **se niega a arrancar** con la clave por defecto: hay que definir `ADMIN_PASSWORD`.
+- La cuenta admin se crea la primera vez. Para cambiar su clave después, borra su archivo en `storage/users/` y reinicia.
+- Variables: `PORT` (8000), `STORAGE_DIR` (`./storage`), `ADMIN_USER`, `ADMIN_PASSWORD`, `SECURE_COOKIES=1` (obligatorio detrás de HTTPS).
 - Todo lo subido vive en `storage/` (usuarios, obras, imágenes, texturas). Haz copias de esa carpeta.
 
 ## Roles (beta)
 
-El botón **Iniciar sesión (beta)** está arriba a la derecha. Los permisos están en una sola tabla, `server/roles.js` (los de `build:*` solo se aplican a publicaciones propias):
+El botón **Iniciar sesión (beta)** está arriba a la derecha. Con el admin dentro aparece la etiqueta **MODO ADMIN**, la franja morada en la cabecera y la sección **Moderación** (búsqueda por título/autor, filtro publicadas/borradores, paginada en servidor). Cada acción del admin sobre contenido ajeno se registra en la consola del servidor (`MODERACIÓN …`). Los permisos están en una sola tabla, `server/roles.js` (los de `build:*` solo se aplican a publicaciones propias):
 
 | Rol | Puede | No puede |
 |---|---|---|
 | Visitante | ver el catálogo, fotos, visor 3D, materiales, descargar | publicar |
 | **Usuario** (registro abierto) | **subir el archivo y las imágenes; editar y eliminar SUS publicaciones** | tocar publicaciones ajenas; actualizar texturas |
-| **Administrador** (cuenta `admin`) | **actualizar las texturas globales de toda la web** | subir construcciones |
+| **Administrador** (cuenta `admin`, **modo admin**) | **moderar: ver, editar y eliminar cualquier publicación (también borradores)** · **actualizar las texturas globales** | subir construcciones ni publicar por otros |
 
 ## Cómo funciona
 
@@ -41,10 +45,10 @@ El botón **Iniciar sesión (beta)** está arriba a la derecha. Los permisos est
 index.html · css/app.css        sitio (catálogo)
 viewer.html · css/style.css     herramienta local de visor (sin servidor)
 server/                         server.js (arranque) · app.js · config.js · router.js · http.js · auth.js · roles.js · analyze.js
-  routes/                       auth · builds · textures · static (solo HTTP)
+  routes/                       auth · builds (+ moderación) · textures · static (solo HTTP)
   services/builds.js            reglas de negocio: permisos, dueño, cuotas, versiones
   storage/                      index.js (fábrica) · file-store.js (contrato async; reemplazable por base de datos)
-js/app/                         main · router · auth · api · ui · textures-global · materials-view · viewer-panel · pages/{catalog,build,upload,mine,edit,admin}
+js/app/                         main · router · auth · api · ui · textures-global · materials-view · viewer-panel · pages/{catalog,build,upload,mine,edit,moderate,admin}
 docs/ESCALABILIDAD.md           cómo pasar a base de datos y escalar
 js/catalog.js                   categorías, tamaños y clasificación (compartido cliente/servidor)
 js/materials.js                 pilas, shulkers, CSV
@@ -55,7 +59,7 @@ tests/                          run.mjs (núcleo) · store.mjs + store-contract.
 
 API principal: `GET /api/builds?platform&category&size&q&sort&page` · `GET /api/builds/:id` (+`/file`, `/images/:n`) ·
 `POST /api/builds` → `PUT …/file?name=` → `PUT …/images/:n` → `POST …/publish` · edición: `PATCH /api/builds/:id` (con `rev`) · `DELETE /api/builds/:id` ·
-`DELETE …/images/:n` · `POST …/images/:n/cover` · `GET /api/me/builds` · `GET /api/health` ·
+`DELETE …/images/:n` · `POST …/images/:n/cover` · `GET /api/me/builds` · `GET /api/admin/builds?status&q&page` (moderación) · `GET /api/health` ·
 `GET /api/textures` · `POST /api/admin/textures/:kind` · `/api/register` · `/api/login` · `/api/logout` · `/api/session`.
 
 ## Pruebas
@@ -72,7 +76,7 @@ BEDROCK_SAMPLES=/ruta/bedrock-samples node tests/run.mjs   # además contra el p
 - Contraseñas con scrypt; sesión en cookie `HttpOnly` firmada; las peticiones que modifican datos exigen la cabecera `X-Requested-With`.
 - Validación en servidor de formato, tamaño (archivo 64 MB, imagen 5 MB, descompresión máx. 400 MB, rejilla máx. 80 M celdas) y de que las imágenes
   sean imágenes reales. Límite de intentos de login/registro en memoria (se reinicia con el servidor).
-- Cada usuario puede editar y eliminar solo lo suyo (la edición usa control de versión `rev`: si dos pestañas editan a la vez, la segunda recibe 409). Los borradores sin publicar se eliminan a las 24 h. Moderación (que un admin retire contenido ajeno): pendiente.
+- Cada usuario puede editar y eliminar solo lo suyo (la edición usa control de versión `rev`: si dos pestañas editan a la vez, la segunda recibe 409). Los borradores sin publicar se eliminan a las 24 h. La moderación del admin (editar/eliminar contenido ajeno) ya está; falta un historial persistente de auditoría (hoy solo va al log).
 - Hoy el almacenamiento son archivos (`STORAGE=file`): probado con 20 000 obras y 5 000 usuarios en un proceso. Para más, ver **docs/ESCALABILIDAD.md** (contrato del almacén, esquema SQL, migración y escalado horizontal).
 - Si lo publicas en internet: ponlo detrás de HTTPS (Caddy/nginx), usa `SECURE_COOKIES=1` y cambia la contraseña del admin.
 

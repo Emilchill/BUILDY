@@ -5,10 +5,10 @@ import {auth,can} from '../auth.js';
 
 const nOf=u=>+/\/images\/(\d)/.exec(u)[1];
 export async function editPage(m,qs,app){
-  if(!can('build:edit')){app.append(h('div',{class:'empty'},'Inicia sesión para editar tus publicaciones.'));return}
+  if(!can('build:edit')&&!can('build:moderate')){app.append(h('div',{class:'empty'},'Inicia sesión para editar tus publicaciones.'));return}
   let b=await api.get('/api/builds/'+m[1]);
-  if(!b.mine){app.append(h('div',{class:'empty'},'Solo puedes editar tus propias publicaciones.'));return}
-  const cats=auth.meta.categories;
+  if(!b.canManage){app.append(h('div',{class:'empty'},'Solo puedes editar tus propias publicaciones.'));return}
+  const cats=auth.meta.categories,back=b.mine?'#/mias':'#/moderar',mod=!b.mine;
   const title=h('input',{id:'e-title',maxlength:80,value:b.title}),desc=h('textarea',{id:'e-desc',maxlength:2000,rows:4}),
     cat=h('select',{id:'e-cat'},cats.map(c=>h('option',{value:c[0]},c[1]))),tags=h('input',{id:'e-tags',value:b.tags.join(', ')}),
     err=h('p',{class:'error',id:'e-err'}),imgBox=h('div',{class:'edit-imgs',id:'e-imgs'}),fileBox=h('div',{id:'e-fileinfo',class:'muted'}),
@@ -40,12 +40,12 @@ export async function editPage(m,qs,app){
     const f=fileIn.files[0];if(!f)throw new Error('Selecciona el nuevo archivo');
     status.textContent='Analizando el nuevo archivo…';await api.put(`/api/builds/${b.id}/file?name=${encodeURIComponent(f.name)}`,f);status.textContent='';fileIn.value='';await reload();
   },'Archivo reemplazado: se recalcularon tamaño, plataforma y materiales')},'Reemplazar archivo');
-  const publish=b.status=='draft'&&h('button',{class:'btn',id:'e-publish',onclick:()=>run(async()=>{await api.post(`/api/builds/${b.id}/publish`);toast('Publicada','ok');location.hash='#/build/'+b.id})},'Publicar');
+  const publish=b.mine&&b.status=='draft'&&h('button',{class:'btn',id:'e-publish',onclick:()=>run(async()=>{await api.post(`/api/builds/${b.id}/publish`);toast('Publicada','ok');location.hash='#/build/'+b.id})},'Publicar');
   const del=h('button',{class:'btn danger',id:'e-delete',onclick:async()=>{
     if(!await confirmDialog(`Se eliminará «${b.title}» con su archivo e imágenes. Esta acción no se puede deshacer.`))return;
-    await run(async()=>{await api.del('/api/builds/'+b.id);toast('Publicación eliminada','ok');location.hash='#/mias'});}},'Eliminar publicación');
+    await run(async()=>{await api.del('/api/builds/'+b.id);toast('Publicación eliminada','ok');location.hash=back});}},'Eliminar publicación');
   const field=(l,c)=>h('label',{class:'field'},h('span',{},l),c);
-  app.append(h('a',{class:'back-link',href:'#/mias'},'← Mis construcciones'),h('h1',{},'Editar publicación',h('span',{class:'chip status '+b.status,style:'margin-left:10px'},b.status=='published'?'Publicada':'Borrador')),
+  app.append(h('a',{class:'back-link',href:back},mod?'← Moderación':'← Mis construcciones'),mod&&h('div',{class:'notice',id:'e-mod'},h('b',{},'Modo admin: '),`estás editando la publicación de ${b.author}. Los cambios quedan registrados en el servidor.`),h('h1',{},'Editar publicación',h('span',{class:'chip status '+b.status,style:'margin-left:10px'},b.status=='published'?'Publicada':'Borrador')),
     h('div',{class:'card-box form'},h('h2',{},'Datos'),field('Título',title),field('Tipo de construcción',cat),field('Descripción',desc),field('Etiquetas (separadas por coma)',tags),err,h('div',{class:'actions'},save,publish)),
     h('div',{class:'card-box form'},h('h2',{},'Imágenes'),h('p',{class:'muted'},'La portada es la primera. Máximo 6.'),imgBox,field('Añadir imágenes',addImgs)),
     h('div',{class:'card-box form'},h('h2',{},'Archivo de la estructura'),fileBox,field('Reemplazar por otro archivo',fileIn),h('div',{class:'actions'},replace),status),

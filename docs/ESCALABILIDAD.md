@@ -12,7 +12,7 @@ navegador ──HTTP──▶ routes/*  ──▶ services/builds.js ──▶ s
 | Capa | Archivos | Qué decide |
 |---|---|---|
 | Rutas | `server/routes/*.js`, `router.js`, `http.js` | HTTP: parámetros, cabeceras, ETag, códigos |
-| Servicios | `server/services/builds.js`, `roles.js` | permisos, dueño, cuotas, validación, concurrencia |
+| Servicios | `server/services/builds.js`, `roles.js` | permisos, dueño, modo admin (`build:moderate`), cuotas, validación, concurrencia |
 | Almacenamiento | `server/storage/*.js` | persistencia; **único** lugar que sabe de archivos/SQL |
 | Configuración | `server/config.js` | límites y variables de entorno |
 
@@ -95,3 +95,7 @@ concurrente o cientos de miles de obras, es el momento de pasar a base de datos.
 
 Archivo 64 MB · imagen 5 MB · 6 imágenes · 5 borradores y 500 publicaciones por usuario · 120 escrituras / 10 min · 8 intentos de login por usuario y 10 por IP
 cada 10 min · borradores sin publicar caducan a las 24 h.
+
+## Cuenta admin y paso a producción
+
+Hoy el admin es una cuenta más en `users` (`role='admin'`) con credenciales por defecto solo para desarrollo (`server/config.js: DEFAULT_ADMIN`). Al pasar a base de datos: define `ADMIN_USER`/`ADMIN_PASSWORD` como secretos del despliegue (el arranque falla en producción con la clave por defecto), y mueve el registro `MODERACIÓN …` (hoy en el log) a una tabla `audit_log(id, actor_id, action, build_id, at)` escrita desde `services/builds.js` (`own()`), el único punto por el que pasa toda acción del admin. `GET /api/admin/builds` ya pagina en el almacén (`listBuilds`), así que escala igual que el catálogo público.

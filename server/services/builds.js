@@ -1,7 +1,7 @@
 /* Lógica de negocio de las construcciones, independiente de HTTP y del almacenamiento (solo usa el contrato `store`). */
 import path from 'node:path';
 import {httpError as E,StoreError} from '../errors.js';
-import {can,canOn} from '../roles.js';
+import {can,canManage} from '../roles.js';
 import {CATEGORIES} from '../../js/catalog.js';
 import {EXT_PLATFORM} from '../analyze.js';
 import {isId,sniffImage} from '../util.js';
@@ -24,14 +24,16 @@ export function createBuildService({store,analyze,config}){
     if(!partial||input.tags!==undefined)o.tags=(Array.isArray(input.tags)?input.tags:[]).map(t=>String(t).trim().toLowerCase().slice(0,20)).filter(Boolean).slice(0,5);
     return o;
   }
-  /* carga la obra y comprueba permiso + dueño */
-  async function own(user,id,perm){
+  /* carga la obra y comprueba permiso + dueño (o modo admin). ownerOnly: ni el admin puede (p. ej. publicar por otro) */
+  async function own(user,id,perm,{ownerOnly=false}={}){
     if(!user)throw E(401,'Inicia sesión para continuar');
-    if(!can(user,perm))throw E(403,'Tu rol no tiene permiso para esto');
+    if(!can(user,perm)&&!can(user,'build:moderate'))throw E(403,'Tu rol no tiene permiso para esto');
     const b=isId(id)?await store.getBuild(id):null;if(!b)throw E(404,'No existe');
-    if(!canOn(user,perm,b))throw E(403,'Solo puedes modificar tus publicaciones');
+    if(ownerOnly?!(can(user,perm)&&b.ownerId===user.id):!canManage(user,perm,b))throw E(403,'Solo puedes modificar tus publicaciones');
+    if(b.ownerId!==user.id)config.log(`MODERACIÓN ${user.name} → ${perm} «${b.title}» (${b.id}) de ${b.ownerName}`);
     return b;
   }
+  const sees=(b,v)=>b.status=='published'||!!(v&&(v.id==b.ownerId||can(v,'build:moderate')));
   const upd=async(id,patch,rev)=>{
     try{return await store.updateBuild(id,patch,{expectRev:rev})}
     catch(e){if(e instanceof StoreError){if(e.code=='CONFLICT')throw E(409,e.message);if(e.code=='NOT_FOUND')throw E(404,'No existe')}throw e}
@@ -89,7 +91,7 @@ export function createBuildService({store,analyze,config}){
       return {rev:next.rev};
     },
     async publish(user,id){
-      const b=await own(user,id,'build:edit');
+      const b=await own(user,id,'build:edit',{ownerOnly:true});
       if(!b.file)throw E(400,'Falta el archivo de la estructura');
       if(!b.images.length)throw E(400,'Sube al menos una imagen');
       const next=await upd(id,{status:'published',publishedAt:b.publishedAt||Date.now()});return {id,rev:next.rev};
@@ -97,8 +99,8 @@ export function createBuildService({store,analyze,config}){
     /* ---- lectura ---- */
     async get(id,viewer){
       const b=isId(id)?await store.getBuild(id):null,mine=!!(b&&viewer&&viewer.id==b.ownerId);
-      if(!b||(b.status!='published'&&!mine))throw E(404,'No existe');
-      return {...toItem(b),description:b.description,file:b.file||null,materials:await store.getMaterials(id),mine,images:b.images.map(i=>url(b,i.n))};
+      if(!b||!sees(b,viewer))throw E(404,'No existe');
+      return {...toItem(b),description:b.description,file:b.file||null,materials:await store.getMaterials(id),mine,canManage:canManage(viewer,'build:edit',b),images:b.images.map(i=>url(b,i.n))};
     },
     async list(q){
       const per=Math.min(L.pageMax,Math.max(1,+q.per||24)),page=Math.max(1,+q.page||1);
@@ -111,10 +113,17 @@ export function createBuildService({store,analyze,config}){
       const r=await store.listBuilds({ownerId:user.id,sort:'recent',page,per});
       return {total:r.total,page,pages:Math.max(1,Math.ceil(r.total/per)),items:r.items.map(toItem)};
     },
-    /* descargas: públicas si está publicada; el dueño también ve sus borradores */
+    /* moderación (modo admin): todas las obras, publicadas y borradores, paginadas y filtrables */
+    async all(user,q){
+      if(!user)throw E(401,'Inicia sesión para continuar');if(!can(user,'build:moderate'))throw E(403,'Tu rol no tiene permiso para esto');
+      const per=Math.min(L.pageMax,Math.max(1,+q.per||24)),page=Math.max(1,+q.page||1),status=q.status=='draft'||q.status=='published'?q.status:undefined;
+      const r=await store.listBuilds({status,q:String(q.q||'').slice(0,80),sort:'recent',page,per});
+      return {total:r.total,page,pages:Math.max(1,Math.ceil(r.total/per)),items:r.items.map(toItem)};
+    },
+    /* descargas: públicas si está publicada; el dueño (y el admin) también ven los borradores */
     async blob(id,viewer,pick){
       const b=isId(id)?await store.getBuildLite(id):null;
-      if(!b||(b.status!='published'&&!(viewer&&viewer.id==b.ownerId)))throw E(404,'No existe');
+      if(!b||!sees(b,viewer))throw E(404,'No existe');
       const info=pick(b);if(!info)throw E(404,'No existe');
       const o=await store.openBlob(id,info.name);if(!o)throw E(404,'No existe');return {...o,...info};
     },

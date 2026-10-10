@@ -7,7 +7,10 @@ export function authRoutes(r,app){
   const {store,limit}=app;
   const setSession=(c,u)=>c.res.setHeader('Set-Cookie',`sid=${u?makeToken(store.secret(),u.id,u.sv):''}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${u?14*86400:0}${app.secure(c.req)?'; Secure':''}`);
 
-  r.get('/api/session',c=>c.json(200,{user:app.pub(c.user),categories:CATEGORIES,sizes:SIZES,platforms:PLATFORMS}));
+  const LOCAL=/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/;
+  /* devAdmin: solo si la clave admin es la de por defecto Y la petición viene de localhost (nunca se expone en internet) */
+  r.get('/api/session',c=>c.json(200,{user:app.pub(c.user),categories:CATEGORIES,sizes:SIZES,platforms:PLATFORMS,
+    devAdmin:app.config.adminIsDefault&&!c.req.headers['x-forwarded-for']&&LOCAL.test(c.req.socket.remoteAddress||'')?{name:app.config.adminUser,password:app.config.adminPassword}:null}));
   r.post('/api/register',async c=>{
     if(!limit.reg(c.ip))throw E(429,'Demasiados registros, intenta más tarde');
     const b=await c.body();
