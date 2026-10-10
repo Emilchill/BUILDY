@@ -12,7 +12,7 @@ export function globalSources(){
     for(const k of ['bedrock','java']){
       if(!st[k])continue;
       try{
-        const [ix,blob]=await Promise.all([fetch(`/api/textures/${k}/index.json`).then(r=>r.json()),fetch(`/api/textures/${k}/atlas.png`).then(r=>r.blob())]);
+        const [ix,blob]=await Promise.all([api.get(`/api/textures/${k}/index.json`),api.blob(`/api/textures/${k}/atlas.png`)]);
         const atlas=await recordToAtlas({blob,cols:ix.cols,rows:ix.rows,names:ix.names});
         out[k]=k=='bedrock'?new BedrockSource(atlas,ix.meta):new JavaSource(atlas);
       }catch(e){console.warn('Texturas',k,e)}

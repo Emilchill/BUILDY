@@ -17,6 +17,17 @@ ADMIN_PASSWORD='una-clave-larga' npm start       # con tu propia clave de admin
 - Variables: `PORT` (8000), `STORAGE_DIR` (`./storage`), `ADMIN_USER`, `ADMIN_PASSWORD`, `SECURE_COOKIES=1` (obligatorio detrás de HTTPS).
 - Todo lo subido vive en `storage/` (usuarios, obras, imágenes, texturas). Haz copias de esa carpeta.
 
+## Sitio estático (GitHub Pages) · modo local
+
+Si subes el repositorio tal cual a GitHub Pages (`https://usuario.github.io/REPO/`) **no hay servidor Node**. La web lo detecta sola (`GET api/health` falla) y
+arranca en **modo local**: las mismas rutas, servicios, roles y reglas que `server/`, pero sobre IndexedDB del navegador (`js/app/local/`). Se ve un aviso arriba.
+
+- Login: `admin` / `admin12345` (botón **Entrar como admin** en el modal) o registra usuarios; todo funciona: subir, editar, borrar, moderar, texturas, visor 3D.
+- **Los datos son de cada navegador**: lo que publica un visitante no lo ve otro. Es para probar/enseñar. Para que sea compartido hay que desplegar el servidor
+  (`npm start` en un hosting con Node) y, para miles de usuarios, pasar a base de datos (docs/ESCALABILIDAD.md): el cliente no cambia, porque `js/app/api.js` solo usa rutas relativas.
+- Fuerza el modo local aunque haya servidor con `?local` en la URL.
+- Las contraseñas del modo local se guardan con PBKDF2, pero al ser todo cliente **no es seguridad real**: no pongas datos sensibles.
+
 ## Roles (beta)
 
 El botón **Iniciar sesión (beta)** está arriba a la derecha. Con el admin dentro aparece la etiqueta **MODO ADMIN**, la franja morada en la cabecera y la sección **Moderación** (búsqueda por título/autor, filtro publicadas/borradores, paginada en servidor). Cada acción del admin sobre contenido ajeno se registra en la consola del servidor (`MODERACIÓN …`). Los permisos están en una sola tabla, `server/roles.js` (los de `build:*` solo se aplican a publicaciones propias):
@@ -54,7 +65,7 @@ js/catalog.js                   categorías, tamaños y clasificación (comparti
 js/materials.js                 pilas, shulkers, CSV
 js/formats · blocks · render · textures    núcleo del visor (ver abajo)
 data/aliases.json               equivalencias Java ⇄ Bedrock (solo ids)
-tests/                          run.mjs (núcleo) · store.mjs + store-contract.mjs (contrato del almacén) · server.mjs (API, roles, límites) · ui.mjs (interfaz con jsdom) · bench.mjs
+tests/                          local.mjs (interfaz sin servidor) · run.mjs (núcleo) · store.mjs + store-contract.mjs (contrato del almacén) · server.mjs (API, roles, límites) · ui.mjs (interfaz con jsdom) · bench.mjs
 ```
 
 API principal: `GET /api/builds?platform&category&size&q&sort&page` · `GET /api/builds/:id` (+`/file`, `/images/:n`) ·

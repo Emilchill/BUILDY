@@ -1,9 +1,7 @@
 /* Lógica de negocio de las construcciones, independiente de HTTP y del almacenamiento (solo usa el contrato `store`). */
-import path from 'node:path';
 import {httpError as E,StoreError} from '../errors.js';
 import {can,canManage} from '../roles.js';
-import {CATEGORIES} from '../../js/catalog.js';
-import {EXT_PLATFORM} from '../analyze.js';
+import {CATEGORIES,EXT_PLATFORM,extOf,baseName} from '../../js/catalog.js';
 import {isId,sniffImage} from '../util.js';
 
 const byN=(a,b)=>a.n-b.n;
@@ -56,12 +54,12 @@ export function createBuildService({store,analyze,config}){
     },
     async remove(user,id){await own(user,id,'build:delete');await store.deleteBuild(id);return {ok:true}},
     async putFile(user,id,name,buf){
-      const b=await own(user,id,'build:edit'),ext=path.extname(name||'').toLowerCase();
+      const b=await own(user,id,'build:edit'),ext=extOf(name);
       if(!EXT_PLATFORM[ext])throw E(400,'Formato no admitido. Usa .mcstructure, .nbt, .schem o .litematic');
       const a=await analyze(buf,name);
       await store.putBlob(id,'file'+ext,buf);
       if(b.file&&b.file.ext!==ext)await store.deleteBlob(id,'file'+b.file.ext);
-      const next=await upd(id,{file:{name:path.basename(name).slice(0,100),ext,size:buf.length},platform:a.platform,format:a.format,dims:a.dims,size:a.size,total:a.total,types:a.types,materials:a.materials});
+      const next=await upd(id,{file:{name:baseName(name).slice(0,100),ext,size:buf.length},platform:a.platform,format:a.format,dims:a.dims,size:a.size,total:a.total,types:a.types,materials:a.materials});
       return {platform:a.platform,dims:a.dims,size:a.size,total:a.total,types:a.types,rev:next.rev};
     },
     async putImage(user,id,n,buf){

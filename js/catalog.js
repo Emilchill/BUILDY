@@ -7,3 +7,6 @@ export const SIZES=[['small','Pequeña','hasta 24 bloques'],['medium','Mediana',
 /* Tamaño según la dimensión más larga */
 export const sizeClass=({w,h,l})=>{const m=Math.max(w,h,l);return m<=24?'small':m<=64?'medium':m<=128?'large':'huge'};
 export const labelOf=(list,key)=>(list.find(x=>x[0]==key)||[key,key])[1];
+export const EXT_PLATFORM={'.mcstructure':'bedrock','.nbt':'java','.schem':'java','.litematic':'java'};
+export const extOf=n=>{const m=/\.[^.\\/]*$/.exec(String(n||''));return m?m[0].toLowerCase():''};
+export const baseName=n=>String(n||'').split(/[\\/]/).pop();

@@ -17,7 +17,7 @@ const base=`http://localhost:${port}`;
 const jar={};const real=globalThis.fetch;
 const f=async(url,o={})=>{
   const headers={'X-Requested-With':'fetch',...(o.headers||{})};const c=Object.entries(jar).map(([k,v])=>k+'='+v).join('; ');if(c)headers.Cookie=c;
-  const r=await real(url.startsWith('http')?url:base+url,{...o,headers});
+  const r=await real(url.startsWith('http')?url:base+(url.startsWith('/')?'':'/')+url,{...o,headers});
   const sc=r.headers.get('set-cookie');if(sc){const [kv]=sc.split(';'),[k,...v]=kv.split('=');if(v.join('='))jar[k]=v.join('=');else delete jar[k]}
   return r;
 };

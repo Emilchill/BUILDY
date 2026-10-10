@@ -3,9 +3,8 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import {readStructure} from '../js/formats/loaders.js';
 import {Builder} from '../js/formats/model.js';
-import {sizeClass} from '../js/catalog.js';
-
-export const EXT_PLATFORM={'.mcstructure':'bedrock','.nbt':'java','.schem':'java','.litematic':'java'};
+import {sizeClass,EXT_PLATFORM} from '../js/catalog.js';
+export {EXT_PLATFORM};
 const MAX_UNZIPPED=400*1024*1024;
 Builder.maxCells=8e7;   // ~160 MB de rejilla como máximo
 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server/server.js",
     "viewer": "python3 -m http.server 8000",
-    "test": "node tests/run.mjs && node tests/store.mjs && node tests/server.mjs && node tests/ui.mjs",
+    "test": "node tests/run.mjs && node tests/store.mjs && node tests/server.mjs && node tests/ui.mjs && node tests/local.mjs",
     "bench": "node tests/bench.mjs"
   },
   "license": "MIT",

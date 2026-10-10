@@ -3,6 +3,7 @@ import {h,modal,loadScript,THREE_URL} from './ui.js';
 import {readStructure} from '../formats/loaders.js';
 import {buildGeometry} from '../render/mesh.js';
 import {globalSources,pickSource} from './textures-global.js';
+import {api} from './api.js';
 
 export async function openViewer(build){
   const status=h('span',{class:'muted',id:'v-status'},'Cargando visor 3D…');
@@ -16,7 +17,7 @@ export async function openViewer(build){
     await loadScript(THREE_URL);
     const {Viewer}=await import('../render/scene.js');
     const [buf,src]=await Promise.all([
-      fetch(`/api/builds/${build.id}/file`).then(r=>{if(!r.ok)throw new Error('No se pudo descargar la estructura');return r.arrayBuffer()}),
+      api.blob(`/api/builds/${build.id}/file`).then(b=>b.arrayBuffer()).catch(()=>{throw new Error('No se pudo descargar la estructura')}),
       globalSources().catch(()=>({}))]);
     const model=await readStructure(new Uint8Array(buf),build.file.name);
     vw=new Viewer(box.querySelector('canvas'),box);vw.fit(model);

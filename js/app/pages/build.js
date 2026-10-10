@@ -1,6 +1,6 @@
 /* Ficha de una construcción: fotos, datos, visor 3D opcional y lista de materiales en pilas. */
 import {h,fmt,fmtDate,toast,confirmDialog} from '../ui.js';
-import {api} from '../api.js';
+import {api,isLocal} from '../api.js';
 import {auth} from '../auth.js';
 import {labelOf,PLATFORMS} from '../../catalog.js';
 import {materialsView} from '../materials-view.js';
@@ -26,7 +26,9 @@ export async function buildPage(m,qs,app){
           row('Bloques',fmt(b.total)),row('Tipos de bloque',b.types),row('Archivo',`${b.file.name} (${(b.file.size/1024).toFixed(0)} KB)`)),
         h('div',{class:'actions'},
           h('button',{class:'btn',id:'open-3d',onclick:()=>openViewer(b)},'Ver en 3D'),
-          h('a',{class:'btn sec',id:'download',href:`/api/builds/${b.id}/file`,download:b.file.name},'Descargar archivo'),
+          h('a',{class:'btn sec',id:'download',href:`/api/builds/${b.id}/file`,download:b.file.name,onclick:e=>{
+            if(!isLocal())return;e.preventDefault();       // modo local: el archivo vive en el navegador
+            api.blob(`/api/builds/${b.id}/file`).then(bl=>{const a=h('a',{href:URL.createObjectURL(bl),download:b.file.name});document.body.append(a);a.click();a.remove()}).catch(x=>toast(x.message,'err'))}},'Descargar archivo'),
           b.canManage&&h('a',{class:'btn sec',id:'b-edit',href:'#/editar/'+b.id},'Editar'),
           b.canManage&&h('button',{class:'btn danger',id:'b-del',onclick:async()=>{
             if(!await confirmDialog(`Se eliminará «${b.title}» con su archivo e imágenes. Esta acción no se puede deshacer.`))return;
