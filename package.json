@@ -1,11 +1,19 @@
 {
   "name": "mc-structure-viewer",
   "version": "1.0.0",
-  "description": "Visor 3D de estructuras de Minecraft (Bedrock y Java) con lista de materiales",
+  "description": "Catálogo web de estructuras de Minecraft (Bedrock y Java) con visor 3D, lista de materiales en pilas/shulkers y roles",
   "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 8000",
-    "test": "node tests/run.mjs"
+    "start": "node server/server.js",
+    "viewer": "python3 -m http.server 8000",
+    "test": "node tests/run.mjs && node tests/store.mjs && node tests/server.mjs && node tests/ui.mjs",
+    "bench": "node tests/bench.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "jsdom": "^30.1.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

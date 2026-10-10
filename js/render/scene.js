@@ -10,8 +10,9 @@ export class Viewer{
     this.noise=makeNoise();this.cache=new WeakMap();this.mesh=null;this.grid=null;
     this.#controls(canvas);
     new ResizeObserver(()=>this.resize()).observe(box);this.resize();
-    const loop=()=>{requestAnimationFrame(loop);if(this.auto)this.th+=.005;this.#place();this.renderer.render(this.scene,this.cam)};loop();
+    const loop=()=>{if(this.stopped)return;requestAnimationFrame(loop);if(this.auto)this.th+=.005;this.#place();this.renderer.render(this.scene,this.cam)};loop();
   }
+  dispose(){this.stopped=true;if(this.mesh)this.mesh.geometry.dispose();this.renderer.dispose()}
   resize(){const w=this.box.clientWidth,h=this.box.clientHeight;this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));this.renderer.setSize(w,h,false);this.cam.aspect=w/Math.max(h,1);this.cam.updateProjectionMatrix()}
   #place(){const c=this.cam,t=this.tgt;c.position.set(t.x+this.dist*Math.sin(this.ph)*Math.sin(this.th),t.y+this.dist*Math.cos(this.ph),t.z+this.dist*Math.sin(this.ph)*Math.cos(this.th));c.lookAt(t);c.updateMatrixWorld()}
   #controls(cv){

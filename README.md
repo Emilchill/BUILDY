@@ -1,76 +1,89 @@
-# Visor de estructuras de Minecraft
+# Catálogo de estructuras de Minecraft
 
-Visor 3D en el navegador para estructuras de **Bedrock** (`.mcstructure`) y **Java** (`.nbt`, `.schem`, `.litematic`), con lista de
-materiales (nombres en español, cantidades, stacks, exportación a CSV) y bloques con su forma y orientación reales: escaleras,
-losas, vallas, puertas, palancas, tolvas, rieles, redstone, repetidores, pistones, etc.
+Sitio web (catálogo/foro) para publicar y explorar estructuras de **Bedrock** y **Java**: fotos, filtros, ficha con **visor 3D opcional** y
+**lista de materiales siempre en pilas** (con vista en **shulkers** cuando la obra es grande). Sin dependencias en producción: solo Node ≥ 18.
 
-## Uso
+## Arrancar
 
 ```bash
-python3 -m http.server 8000     # o: npm start
-# abre http://localhost:8000
+ADMIN_PASSWORD='una-clave-larga' npm start      # http://localhost:8000
 ```
 
-Los módulos ES necesitan un servidor local (no funcionan abriendo `index.html` con doble clic).
+- Si no defines `ADMIN_PASSWORD`, se genera una contraseña al azar y se imprime **una sola vez** en la consola.
+- Variables: `PORT` (8000), `STORAGE_DIR` (`./storage`), `SECURE_COOKIES=1` (obligatorio detrás de HTTPS).
+- Todo lo subido vive en `storage/` (usuarios, obras, imágenes, texturas). Haz copias de esa carpeta.
 
-1. **Cargar texturas** (una sola vez; se guardan en tu navegador):
-   - el `.zip` de [`bedrock-samples`](https://github.com/Mojang/bedrock-samples): aporta texturas, nombres en español y el índice de bloques;
-   - o un resource pack de Java (`.zip`) / el `.jar` del juego.
-2. **Subir estructura** (o arrastrarla a la ventana). Puede ir dentro de un `.zip`/`.mcpack`.
-3. Panel lateral: capa máxima, origen de texturas, lista de materiales (clic en un bloque = ocultarlo), CSV.
+## Roles (beta)
 
-## Qué hace con los datos de Bedrock
+El botón **Iniciar sesión (beta)** está arriba a la derecha. Los permisos están en una sola tabla, `server/roles.js` (los de `build:*` solo se aplican a publicaciones propias):
 
-El zip de `bedrock-samples` se lee **en el navegador** y se convierte en un índice compacto:
+| Rol | Puede | No puede |
+|---|---|---|
+| Visitante | ver el catálogo, fotos, visor 3D, materiales, descargar | publicar |
+| **Usuario** (registro abierto) | **subir el archivo y las imágenes; editar y eliminar SUS publicaciones** | tocar publicaciones ajenas; actualizar texturas |
+| **Administrador** (cuenta `admin`) | **actualizar las texturas globales de toda la web** | subir construcciones |
 
-| Origen en el zip | Para qué se usa |
-|---|---|
-| `resource_pack/blocks.json` | caras (arriba/abajo/lados) de cada bloque |
-| `resource_pack/textures/terrain_texture.json` | clave de textura → archivo (con variantes) |
-| `resource_pack/textures/blocks/*.png` y `*.tga` | atlas 3D (las `.tga` se decodifican en `js/textures/tga.js`) |
-| `resource_pack/texts/es_ES.lang` + `metadata/vanilladata_modules/mojang-blocks.json` | nombres para la lista de materiales |
+## Cómo funciona
 
-`data/aliases.json` traduce los nombres de Java a los ids de Bedrock (`grass_block` ⇄ `grass`, `sugar_cane` ⇄ `reeds`, `oak_door` ⇄
-`wooden_door`, ...). Está verificado contra el `blocks.json` de la versión 1.26.50.4.
+- **Subida (Usuario):** crea la publicación → sube el archivo (el servidor lo analiza: plataforma, dimensiones, bloques y materiales) →
+  sube 1 a 6 imágenes (PNG/JPG/WEBP reales, se reducen en el navegador si pesan mucho) → publica. Sin archivo e imagen no se publica.
+- **Clasificación automática:** `.mcstructure` → **Bedrock**; `.nbt`, `.schem`, `.litematic` → **Java**. Tamaño por dimensión más larga:
+  Pequeña ≤ 24 · Mediana 25–64 · Grande 65–128 · Enorme > 128. El **tipo de construcción** (casa, castillo, redstone, granja…) lo elige quien sube.
+- **Filtros:** plataforma, tipo, tamaño, búsqueda (título, etiquetas, autor) y orden (recientes, más bloques, más grandes, A–Z).
+- **Ficha:** galería, datos, **Ver en 3D** (se carga solo si lo pides), descarga y **materiales**: siempre en pilas (`3 × 64 + 12`; 16 para
+  carteles/estandartes, 1 para camas/shulkers). Si ocupa más de 27 huecos, aparece **En shulkers** y reparte los ítems en cajas de 27.
+- **Texturas globales (Admin):** sube el `.zip` de `bedrock-samples` (o un resource pack de Java). Se procesa **en el navegador del admin** y
+  solo se envía el atlas (PNG + índice); todos los visitantes ven esas texturas y los nombres en español. Se actualiza sin tocar el código.
 
 ## Estructura
 
 ```
-index.html            página
-css/style.css
-data/aliases.json     equivalencias Java <-> Bedrock (solo ids)
-js/
-  main.js             arranque y UI (archivos, packs, materiales)
-  materials.js        lista de materiales, stacks, CSV
-  formats/            nbt.js · model.js (rejilla de estados) · loaders.js (.mcstructure/.nbt/.schem/.litematic)
-  blocks/             shapes.js (formas y conexiones) · orientation.js (caras por orientación)
-                      bedrock.js (estados Bedrock -> Java) · colors.js (colores sin textura, tintes)
-  render/             mesh.js (geometría, sin three.js) · scene.js (three.js, cámara) · math.js
-  textures/           atlas.js · store.js (IndexedDB) · java.js · bedrock.js · tga.js
-tests/run.mjs         pruebas en Node
+index.html · css/app.css        sitio (catálogo)
+viewer.html · css/style.css     herramienta local de visor (sin servidor)
+server/                         server.js (arranque) · app.js · config.js · router.js · http.js · auth.js · roles.js · analyze.js
+  routes/                       auth · builds · textures · static (solo HTTP)
+  services/builds.js            reglas de negocio: permisos, dueño, cuotas, versiones
+  storage/                      index.js (fábrica) · file-store.js (contrato async; reemplazable por base de datos)
+js/app/                         main · router · auth · api · ui · textures-global · materials-view · viewer-panel · pages/{catalog,build,upload,mine,edit,admin}
+docs/ESCALABILIDAD.md           cómo pasar a base de datos y escalar
+js/catalog.js                   categorías, tamaños y clasificación (compartido cliente/servidor)
+js/materials.js                 pilas, shulkers, CSV
+js/formats · blocks · render · textures    núcleo del visor (ver abajo)
+data/aliases.json               equivalencias Java ⇄ Bedrock (solo ids)
+tests/                          run.mjs (núcleo) · store.mjs + store-contract.mjs (contrato del almacén) · server.mjs (API, roles, límites) · ui.mjs (interfaz con jsdom) · bench.mjs
 ```
+
+API principal: `GET /api/builds?platform&category&size&q&sort&page` · `GET /api/builds/:id` (+`/file`, `/images/:n`) ·
+`POST /api/builds` → `PUT …/file?name=` → `PUT …/images/:n` → `POST …/publish` · edición: `PATCH /api/builds/:id` (con `rev`) · `DELETE /api/builds/:id` ·
+`DELETE …/images/:n` · `POST …/images/:n/cover` · `GET /api/me/builds` · `GET /api/health` ·
+`GET /api/textures` · `POST /api/admin/textures/:kind` · `/api/register` · `/api/login` · `/api/logout` · `/api/session`.
 
 ## Pruebas
 
 ```bash
-npm test                                          # formatos, geometría, conexiones, materiales
-BEDROCK_SAMPLES=/ruta/bedrock-samples npm test    # además valida contra el pack real
+npm install            # solo para las pruebas de interfaz (jsdom)
+npm test               # núcleo + contrato del almacén + API/roles/límites + interfaz
+npm run bench          # capacidad con 20 000 obras
+BEDROCK_SAMPLES=/ruta/bedrock-samples node tests/run.mjs   # además contra el pack real
 ```
 
-Con `bedrock-samples 1.26.50.4`: 1331/1331 bloques de Bedrock con textura y 1311 con nombre en español; de los ids de Java,
-1028/1043 con textura y 1017 con nombre (los que faltan son entidades/bloques técnicos: marcos, cultivos adjuntos, etc.).
+## Seguridad y límites de la beta
+
+- Contraseñas con scrypt; sesión en cookie `HttpOnly` firmada; las peticiones que modifican datos exigen la cabecera `X-Requested-With`.
+- Validación en servidor de formato, tamaño (archivo 64 MB, imagen 5 MB, descompresión máx. 400 MB, rejilla máx. 80 M celdas) y de que las imágenes
+  sean imágenes reales. Límite de intentos de login/registro en memoria (se reinicia con el servidor).
+- Cada usuario puede editar y eliminar solo lo suyo (la edición usa control de versión `rev`: si dos pestañas editan a la vez, la segunda recibe 409). Los borradores sin publicar se eliminan a las 24 h. Moderación (que un admin retire contenido ajeno): pendiente.
+- Hoy el almacenamiento son archivos (`STORAGE=file`): probado con 20 000 obras y 5 000 usuarios en un proceso. Para más, ver **docs/ESCALABILIDAD.md** (contrato del almacén, esquema SQL, migración y escalado horizontal).
+- Si lo publicas en internet: ponlo detrás de HTTPS (Caddy/nginx), usa `SECURE_COOKIES=1` y cambia la contraseña del admin.
 
 ## Aviso legal
 
-Este repositorio contiene **solo código** y la tabla de ids `data/aliases.json`. No incluye texturas, textos ni otros recursos de
-Minecraft. `bedrock-samples` se publica con la licencia *"(c) Mojang AB. All rights reserved"* sujeta al
-[EULA de Minecraft](https://www.minecraft.net/en-us/eula), por eso el visor lo lee desde tu copia local y guarda el resultado únicamente
-en tu navegador (el botón *Borrar texturas guardadas* lo elimina). Minecraft es una marca de Mojang AB / Microsoft.
+El repositorio contiene **solo código**: ninguna textura, texto o recurso de Minecraft. Los recursos de Mojang (`bedrock-samples`, packs) están
+sujetos a su licencia ("All rights reserved") y al [EULA](https://www.minecraft.net/en-us/eula). Al publicar texturas globales como administrador
+las sirves a todos los visitantes: hazlo solo si tienes derecho a distribuirlas (p. ej. un pack propio) o mantén el sitio privado.
+Minecraft es una marca de Mojang AB / Microsoft.
 
-## Limitaciones conocidas
+## Núcleo del visor
 
-- Bedrock: solo se interpretan orientación/estados de escaleras, losas, antorchas, redstone, rieles, palancas y bloques con
-  `facing_direction`. Repetidores y comparadores de Bedrock aún no.
-- Las palancas: el sentido de encendido y el de las de suelo/techo de Bedrock no está verificado con archivos reales
-  (hay dos casillas en el panel para invertirlo).
-- Camas, carteles, cabezas y otros bloques que Mojang dibuja con entidades se muestran como cubos/colores simples.
+`js/formats` lee `.mcstructure`/`.nbt`/`.schem`/`.litematic` · `js/blocks` formas, conexiones y orientación (escaleras, palancas, tolvas, rieles,
+redstone…) · `js/render` geometría y escena three.js · `js/textures` atlas, TGA, packs Java y Bedrock.

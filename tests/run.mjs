@@ -10,27 +10,14 @@ import {withNb,shapeOf,shapeOpts} from '../js/blocks/shapes.js';
 import {buildGeometry} from '../js/render/mesh.js';
 import {buildMeta,BedrockSource} from '../js/textures/bedrock.js';
 import {decodeTGA} from '../js/textures/tga.js';
-import {buildMaterials,toCSV,stacks} from '../js/materials.js';
+import {buildMaterials,toCSV,stacks,stackText,packShulkers,stackSize} from '../js/materials.js';
+import {sizeClass} from '../js/catalog.js';
 
 const root=new URL('..',import.meta.url).pathname;
 setAliases(JSON.parse(fs.readFileSync(path.join(root,'data/aliases.json'),'utf8')));
 let ok=0;const t=(name,fn)=>{fn();ok++;console.log('  ✓',name)};
 
-/* --- escritor mínimo de NBT little-endian (Bedrock) --- */
-const S=s=>{const b=Buffer.from(s);const l=Buffer.alloc(2);l.writeUInt16LE(b.length);return Buffer.concat([l,b])};
-const I=v=>{const b=Buffer.alloc(4);b.writeInt32LE(v);return b};
-const tag=(ty,n,p)=>Buffer.concat([Buffer.from([ty]),S(n),p]);
-const lst=(ty,a)=>Buffer.concat([Buffer.from([ty]),I(a.length),...a]);
-const comp=(...k)=>Buffer.concat([...k,Buffer.from([0])]);
-function mcstructure(){
-  const X=3,Y=2,Z=3,idx=new Array(X*Y*Z).fill(-1),put=(x,y,z,v)=>idx[(x*Y+y)*Z+z]=v;
-  for(let x=0;x<X;x++)for(let z=0;z<Z;z++)put(x,0,z,0);put(1,1,1,1);put(0,1,0,2);put(2,1,2,3);
-  const ent=(n,st)=>comp(tag(8,'name',S(n)),tag(10,'states',comp(...Object.entries(st).map(([k,v])=>typeof v=='number'?tag(3,k,I(v)):tag(8,k,S(v))))),tag(3,'version',I(1)));
-  const pal=[['minecraft:grass',{}],['minecraft:planks',{wood_type:'spruce'}],['minecraft:wool',{color:'silver'}],['minecraft:reeds',{}]];
-  return Buffer.concat([Buffer.from([10]),S(''),comp(tag(3,'format_version',I(1)),tag(9,'size',lst(3,[I(X),I(Y),I(Z)])),
-    tag(10,'structure',comp(tag(9,'block_indices',lst(9,[lst(3,idx.map(I)),lst(3,idx.map(()=>I(-1)))])),tag(9,'entities',lst(0,[])),
-    tag(10,'palette',comp(tag(10,'default',comp(tag(9,'block_palette',lst(10,pal.map(([n,s])=>ent(n,s)))),tag(10,'block_position_data',comp()))))))))]);
-}
+import {mcstructure} from './fixtures.mjs';
 console.log('Formatos');
 t('.mcstructure (Bedrock, little-endian) -> nombres estilo Java',()=>{
   const m=load(parseNBT(new Uint8Array(mcstructure()),true));
@@ -73,6 +60,16 @@ t('lista, stacks y CSV',()=>{
   const m=demo(),rows=buildMaterials(m);assert.ok(rows.length>10);assert.deepEqual(stacks(130),{s:2,r:2});
   assert.ok(toCSV(rows).startsWith('Bloque,ID,Cantidad,Stacks,Resto'));
 });
+
+console.log('Pilas, shulkers y clasificación');
+t('texto de pilas y tamaños de pila',()=>{assert.equal(stackText(130),'2 × 64 + 2');assert.equal(stackText(64),'1 × 64');assert.equal(stackText(20,16),'1 × 16 + 4');
+  assert.deepEqual([stackSize('stone'),stackSize('oak_sign'),stackSize('red_bed')],[64,16,1])});
+t('reparto en shulkers (27 huecos)',()=>{
+  const p=packShulkers([{id:'stone',name:'Piedra',count:64*30},{id:'oak_sign',name:'Cartel',count:20}]);
+  assert.equal(p.slots,30+2);assert.equal(p.shulkers,2);assert.ok(p.big);assert.equal(p.boxes[0].length,27);
+  assert.equal(packShulkers([{id:'dirt',name:'Tierra',count:100}]).big,false);
+});
+t('clasificación por tamaño',()=>{assert.equal(sizeClass({w:10,h:8,l:12}),'small');assert.equal(sizeClass({w:40,h:8,l:12}),'medium');assert.equal(sizeClass({w:70,h:8,l:12}),'large');assert.equal(sizeClass({w:200,h:8,l:12}),'huge')});
 
 const BS=process.env.BEDROCK_SAMPLES;
 if(BS){

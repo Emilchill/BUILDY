@@ -17,7 +17,7 @@ export class Builder{
     let a=[1e9,1e9,1e9],b=[-1e9,-1e9,-1e9];
     for(let i=0;i<N;i++){a[0]=Math.min(a[0],xs[i]);a[1]=Math.min(a[1],ys[i]);a[2]=Math.min(a[2],zs[i]);b[0]=Math.max(b[0],xs[i]);b[1]=Math.max(b[1],ys[i]);b[2]=Math.max(b[2],zs[i])}
     const W=b[0]-a[0]+1,H=b[1]-a[1]+1,L=b[2]-a[2]+1;
-    if(W*H*L>2.5e8)throw new Error('Estructura demasiado grande para mostrar.');
+    if(W*H*L>Builder.maxCells)throw new Error('Estructura demasiado grande para mostrar.');
     const grid=new Uint16Array(W*H*L);
     for(let i=0;i<N;i++)grid[((ys[i]-a[1])*L+(zs[i]-a[2]))*W+(xs[i]-a[0])]=ids[i]+1;
     const counts=new Array(this.names.length).fill(0);let total=0;
@@ -25,3 +25,4 @@ export class Builder{
     return {W,H,L,grid,names:this.names,counts,total,states:this.states};
   }
 }
+Builder.maxCells=2.5e8; // el servidor lo reduce para proteger la memoria

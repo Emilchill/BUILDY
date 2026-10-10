@@ -10,5 +10,31 @@ export function sortRows(rows,by){
 }
 export function toCSV(rows){
   const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
-  return ['Bloque,ID,Cantidad,Stacks,Resto',...rows.map(r=>{const k=stacks(r.count);return [q(r.name),q(r.id),r.count,k.s,k.r].join(',')})].join('\n');
+  return ['Bloque,ID,Cantidad,Stacks,Resto',...rows.map(r=>{const k=stacks(r.count,stackSize(r.id));return [q(r.name),q(r.id),r.count,k.s,k.r].join(',')})].join('\n');
+}
+
+/* ---------- Pilas y shulkers ---------- */
+/* Tamaño de pila de un bloque: 64 casi siempre; 16 carteles y estandartes; 1 camas, shulkers y tartas. */
+export function stackSize(id){
+  if(/(^|_)bed$|shulker_box$|^cake$/.test(id))return 1;
+  if(/_sign$|_hanging_sign$|_banner$/.test(id))return 16;
+  return 64;
+}
+export const SHULKER_SLOTS=27;
+/* Texto "3 × 64 + 12" para una cantidad */
+export function stackText(count,size=64){
+  const s=Math.floor(count/size),r=count%size;
+  if(!s)return String(r);
+  return `${s} × ${size}`+(r?` + ${r}`:'');
+}
+/* Reparte los materiales en cajas de shulker (27 huecos). rows: [{id,name,count}]. Cada hueco = {id,name,n} */
+export function packShulkers(rows){
+  const slots=[];
+  for(const r of [...rows].sort((a,b)=>b.count-a.count)){
+    const size=stackSize(r.id);let left=r.count;
+    while(left>0){const n=Math.min(size,left);slots.push({id:r.id,name:r.name,n,size});left-=n}
+  }
+  const boxes=[];
+  for(let i=0;i<slots.length;i+=SHULKER_SLOTS)boxes.push(slots.slice(i,i+SHULKER_SLOTS));
+  return {boxes,slots:slots.length,shulkers:boxes.length,big:slots.length>SHULKER_SLOTS};
 }
